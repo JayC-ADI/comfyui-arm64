@@ -3,22 +3,30 @@ FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /opt
 
+# Base deps
 RUN apt-get update && apt-get install -y \
-    git ca-certificates \
+    git ca-certificates curl \
     python3 python3-pip python3-venv \
     libgl1 libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
-# Always build latest ComfyUI (master)
+# Build arg lets you pin, but default is latest ComfyUI (master)
+ARG COMFYUI_REF=master
+
+# Clone + record exact commit/version inside the image
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
   && cd /opt/ComfyUI \
   && git fetch --tags --force \
-  && git rev-parse HEAD > /opt/COMFYUI_COMMIT \
-  && (git describe --tags --always || true) > /opt/COMFYUI_VERSION
+  && git checkout "${COMFYUI_REF}" \
+  && (git describe --tags --always --dirty || true) > /opt/COMFYUI_VERSION \
+  && git rev-parse HEAD > /opt/COMFYUI_COMMIT
 
 WORKDIR /opt/ComfyUI
 
+# IMPORTANT (ARM64): force CUDA-enabled PyTorch for CUDA 12.4, otherwise pip installs CPU-only torch
 RUN pip3 install --upgrade pip \
+ && pip3 install --index-url https://download.pytorch.org/whl/cu124 \
+      torch torchvision torchaudio \
  && pip3 install -r requirements.txt
 
 EXPOSE 8188

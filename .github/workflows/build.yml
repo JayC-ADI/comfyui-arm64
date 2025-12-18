@@ -17,12 +17,12 @@ jobs:
       - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Determine ComfyUI HEAD commit
+      - name: Determine ComfyUI master HEAD commit
         shell: bash
         run: |
           set -euo pipefail
           SHA="$(git ls-remote https://github.com/comfyanonymous/ComfyUI.git refs/heads/master | cut -f1)"
-          echo "COMFY_SHA=$SHA" >> "$GITHUB_ENV"
+          echo "COMFYUI_REF=$SHA" >> "$GITHUB_ENV"
           echo "COMFY_SHA_SHORT=${SHA:0:12}" >> "$GITHUB_ENV"
           echo "ComfyUI master HEAD: $SHA"
 
@@ -42,6 +42,8 @@ jobs:
           context: .
           platforms: linux/arm64
           push: true
+          build-args: |
+            COMFYUI_REF=${{ env.COMFYUI_REF }}
           tags: |
             ghcr.io/jayc-adi/comfyui:latest
             ghcr.io/jayc-adi/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
