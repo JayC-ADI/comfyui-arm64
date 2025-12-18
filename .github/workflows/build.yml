@@ -60,5 +60,3 @@ jobs:
           tags: |
             ghcr.io/jayc-adi/comfyui:latest
             ghcr.io/jayc-adi/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min

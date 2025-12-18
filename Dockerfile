@@ -22,7 +22,7 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
 
 WORKDIR /opt/ComfyUI
 
-# IMPORTANT: Do NOT install torch here. NGC PyTorch already includes a GB10-capable torch build.
+# IMPORTANT: Do NOT install torch here. NGC PyTorch already includes GB10 (sm_121) support.
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m pip install --upgrade pip \
  && python3 -m pip install -r requirements.txt
