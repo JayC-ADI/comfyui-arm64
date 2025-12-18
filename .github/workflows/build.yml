@@ -14,16 +14,16 @@ jobs:
       packages: write
 
     steps:
-      # Free disk early to avoid "No space left on device" on GitHub hosted runners
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
+      - name: Free disk space on runner
+        shell: bash
+        run: |
+          set -euxo pipefail
+          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android || true
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          docker system prune -af || true
+          df -h
 
       - name: Checkout this repo
         uses: actions/checkout@v4

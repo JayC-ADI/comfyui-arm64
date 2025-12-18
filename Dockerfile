@@ -1,12 +1,6 @@
-# CUDA 12.9 runtime (multi-arch, including arm64) + Ubuntu 24.04
-# (CUDA 12.9 runtime tags exist on Docker Hub) :contentReference[oaicite:1]{index=1}
-FROM nvidia/cuda:12.9.0-cudnn-runtime-ubuntu24.04
+FROM nvidia/cuda:13.0.2-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
 WORKDIR /opt
 
 # Base deps
@@ -16,10 +10,9 @@ RUN apt-get update && apt-get install -y \
     libgl1 libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
-# Pin ComfyUI to a commit SHA provided by the workflow (deterministic)
 ARG COMFYUI_REF=master
 
-# Clone ComfyUI at the pinned ref and record version/commit
+# Clone + record exact commit/version inside the image
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
   && cd /opt/ComfyUI \
   && git fetch --tags --force \
@@ -29,14 +22,26 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
 
 WORKDIR /opt/ComfyUI
 
-# Install python deps, then FORCE a CUDA-enabled SBSA torch last so it cannot be overwritten.
-# Jetson AI Lab SBSA index is explicitly documented for installing CUDA SBSA torch wheels. :contentReference[oaicite:2]{index=2}
+# IMPORTANT:
+# 1) Install ComfyUI deps (they might accidentally pull CPU-only torch).
+# 2) Then force torch/vision/audio to the CUDA build from cu130 index (per ComfyUI docs).
+# 3) Validate we did not end up with CPU torch.
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m pip install --upgrade pip \
- && python3 -m pip install -r requirements.txt --extra-index-url https://pypi.org/simple \
- && python3 -m pip install --upgrade --force-reinstall --no-deps \
-      --index-url https://pypi.jetson-ai-lab.io/sbsa/cu129 \
-      torch torchvision torchaudio
+ && python3 -m pip install -r requirements.txt \
+ && python3 -m pip uninstall -y torch torchvision torchaudio || true \
+ && python3 -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu130 \
+ && python3 - <<'PY' \
+import torch, sys; \
+v = torch.__version__.lower(); \
+cuda = torch.version.cuda; \
+print("torch:", torch.__version__); \
+print("torch.version.cuda:", cuda); \
+# Fail the build if we accidentally ended up with CPU torch \
+if ("+cpu" in v) or (cuda is None): \
+    raise SystemExit("ERROR: CPU-only torch installed (Torch not compiled with CUDA enabled)."); \
+print("OK: CUDA-enabled torch wheel present"); \
+PY
 
 EXPOSE 8188
 
