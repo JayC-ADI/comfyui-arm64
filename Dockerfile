@@ -23,9 +23,11 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
 
 WORKDIR /opt/ComfyUI
 
-# IMPORTANT: GB10 path - use CUDA 13 torch wheels
-RUN pip3 install --upgrade pip \
- && pip3 install --index-url https://download.pytorch.org/whl/cu130 \
+# IMPORTANT: GB10 (sm_121) requires a PyTorch build that includes sm_12x support.
+# Use nightly cu130 wheels (no nvcr.io) and cache pip downloads for faster rebuilds.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install --upgrade pip \
+ && pip3 install --pre --index-url https://download.pytorch.org/whl/nightly/cu130 \
       torch torchvision torchaudio \
  && pip3 install -r requirements.txt
 
