@@ -1,4 +1,4 @@
-name: Build ARM64 ComfyUI (core release)
+name: Build ARM64 ComfyUI (latest)
 
 on:
   push:
@@ -17,37 +17,14 @@ jobs:
       - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Determine latest ComfyUI core release tag + commit
+      - name: Determine ComfyUI HEAD commit
         shell: bash
         run: |
           set -euo pipefail
-
-          # Latest *core* release tag from comfyanonymous/ComfyUI (example shown on Releases page: v0.5.0)
-          TAG="$(curl -fsSL https://api.github.com/repos/comfyanonymous/ComfyUI/releases/latest | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")"
-          VER="${TAG#v}"
-
-          # Resolve the commit SHA for that tag (handles annotated tags)
-          REF_JSON="$(curl -fsSL "https://api.github.com/repos/comfyanonymous/ComfyUI/git/ref/tags/${TAG}")"
-          OBJ_SHA="$(python3 -c "import sys,json; j=json.loads(sys.argv[1]); print(j['object']['sha'])" "$REF_JSON")"
-
-          OBJ_JSON="$(curl -fsSL "https://api.github.com/repos/comfyanonymous/ComfyUI/git/objects/${OBJ_SHA}")"
-          OBJ_TYPE="$(python3 -c "import sys,json; j=json.loads(sys.argv[1]); print(j.get('type',''))" "$OBJ_JSON")"
-
-          if [ "$OBJ_TYPE" = "tag" ]; then
-            TAG_JSON="$(curl -fsSL "https://api.github.com/repos/comfyanonymous/ComfyUI/git/tags/${OBJ_SHA}")"
-            COMMIT_SHA="$(python3 -c "import sys,json; j=json.loads(sys.argv[1]); print(j['object']['sha'])" "$TAG_JSON")"
-          else
-            COMMIT_SHA="$OBJ_SHA"
-          fi
-
-          echo "COMFYUI_REF=${TAG}" >> "$GITHUB_ENV"
-          echo "IMAGE_VER=${VER}" >> "$GITHUB_ENV"
-          echo "COMFY_SHA=${COMMIT_SHA}" >> "$GITHUB_ENV"
-          echo "COMFY_SHA_SHORT=${COMMIT_SHA:0:12}" >> "$GITHUB_ENV"
-
-          echo "Building ComfyUI core ref: ${TAG}"
-          echo "Publishing image tag: ${VER}"
-          echo "ComfyUI core commit: ${COMMIT_SHA}"
+          SHA="$(git ls-remote https://github.com/comfyanonymous/ComfyUI.git refs/heads/master | cut -f1)"
+          echo "COMFY_SHA=$SHA" >> "$GITHUB_ENV"
+          echo "COMFY_SHA_SHORT=${SHA:0:12}" >> "$GITHUB_ENV"
+          echo "ComfyUI master HEAD: $SHA"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -65,9 +42,6 @@ jobs:
           context: .
           platforms: linux/arm64
           push: true
-          build-args: |
-            COMFYUI_REF=${{ env.COMFYUI_REF }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/comfyui:${{ env.IMAGE_VER }}
-            ghcr.io/${{ github.repository_owner }}/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
             ghcr.io/${{ github.repository_owner }}/comfyui:latest
+            ghcr.io/${{ github.repository_owner }}/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
