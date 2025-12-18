@@ -7,13 +7,45 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # ubuntu-latest can move; pin to reduce surprises
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read
       packages: write
 
     steps:
+      - name: Show disk (before cleanup)
+        run: |
+          df -h
+          sudo du -sh /usr/local/lib/android 2>/dev/null || true
+
+      # Free space on GitHub-hosted runner to avoid "No space left on device"
+      - name: Free disk space
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          # Remove large preinstalled toolchains we don't need
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/.ghcup || true
+
+          # Prune docker leftovers (runner sometimes has images)
+          docker system prune -af || true
+
+          # Clean apt caches
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+
+      - name: Show disk (after cleanup)
+        run: |
+          df -h
+          docker system df || true
+
       - name: Checkout this repo
         uses: actions/checkout@v4
 
@@ -55,8 +87,16 @@ jobs:
           context: .
           platforms: linux/arm64
           push: true
+
+          # Cuts extra artifacts (often helps disk)
+          provenance: false
+
           build-args: |
             COMFYUI_REF=${{ env.COMFYUI_REF }}
+
           tags: |
             ghcr.io/jayc-adi/comfyui:latest
             ghcr.io/jayc-adi/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
+
+          # Don't use GHA cache for this build; it can blow disk on big CUDA images
+          no-cache: true
