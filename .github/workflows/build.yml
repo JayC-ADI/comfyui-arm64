@@ -33,7 +33,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: jayc-adi
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ARM64 image
@@ -43,5 +43,5 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/comfyui:latest
-            ghcr.io/${{ github.repository_owner }}/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
+            ghcr.io/jayc-adi/comfyui:latest
+            ghcr.io/jayc-adi/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
