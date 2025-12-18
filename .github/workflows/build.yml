@@ -7,44 +7,23 @@ on:
 
 jobs:
   build:
-    # ubuntu-latest can move; pin to reduce surprises
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     permissions:
       contents: read
       packages: write
 
     steps:
-      - name: Show disk (before cleanup)
-        run: |
-          df -h
-          sudo du -sh /usr/local/lib/android 2>/dev/null || true
-
-      # Free space on GitHub-hosted runner to avoid "No space left on device"
+      # Free disk early to avoid "No space left on device" on GitHub hosted runners
       - name: Free disk space
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          # Remove large preinstalled toolchains we don't need
-          sudo rm -rf /usr/local/lib/android || true
-          sudo rm -rf /usr/share/dotnet || true
-          sudo rm -rf /opt/ghc || true
-          sudo rm -rf /usr/local/share/boost || true
-          sudo rm -rf /usr/local/share/powershell || true
-          sudo rm -rf /usr/local/.ghcup || true
-
-          # Prune docker leftovers (runner sometimes has images)
-          docker system prune -af || true
-
-          # Clean apt caches
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-
-      - name: Show disk (after cleanup)
-        run: |
-          df -h
-          docker system df || true
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
 
       - name: Checkout this repo
         uses: actions/checkout@v4
@@ -66,14 +45,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # REQUIRED because base image is nvcr.io
-      - name: Login to NVIDIA NGC (nvcr.io)
-        uses: docker/login-action@v3
-        with:
-          registry: nvcr.io
-          username: $oauthtoken
-          password: ${{ secrets.NGC_API_KEY }}
-
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -82,21 +53,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ARM64 image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/arm64
           push: true
-
-          # Cuts extra artifacts (often helps disk)
           provenance: false
-
+          sbom: false
           build-args: |
             COMFYUI_REF=${{ env.COMFYUI_REF }}
-
           tags: |
             ghcr.io/jayc-adi/comfyui:latest
             ghcr.io/jayc-adi/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
-
-          # Don't use GHA cache for this build; it can blow disk on big CUDA images
-          no-cache: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
