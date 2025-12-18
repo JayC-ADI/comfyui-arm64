@@ -22,26 +22,16 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
 
 WORKDIR /opt/ComfyUI
 
-# IMPORTANT:
-# 1) Install ComfyUI deps (they might accidentally pull CPU-only torch).
-# 2) Then force torch/vision/audio to the CUDA build from cu130 index (per ComfyUI docs).
-# 3) Validate we did not end up with CPU torch.
+# Install deps, then FORCE CUDA torch from cu130 index (per ComfyUI docs),
+# then fail the build if torch is still CPU-only.
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m pip install --upgrade pip \
  && python3 -m pip install -r requirements.txt \
  && python3 -m pip uninstall -y torch torchvision torchaudio || true \
  && python3 -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu130 \
- && python3 - <<'PY' \
-import torch, sys; \
-v = torch.__version__.lower(); \
-cuda = torch.version.cuda; \
-print("torch:", torch.__version__); \
-print("torch.version.cuda:", cuda); \
-# Fail the build if we accidentally ended up with CPU torch \
-if ("+cpu" in v) or (cuda is None): \
-    raise SystemExit("ERROR: CPU-only torch installed (Torch not compiled with CUDA enabled)."); \
-print("OK: CUDA-enabled torch wheel present"); \
-PY
+ && python3 -c "import torch; v=torch.__version__.lower(); cuda=torch.version.cuda; print('torch:', torch.__version__); print('torch.version.cuda:', cuda); \
+               import sys; \
+               sys.exit(1) if (('+cpu' in v) or (cuda is None)) else None"
 
 EXPOSE 8188
 
