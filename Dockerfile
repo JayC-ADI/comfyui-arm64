@@ -1,12 +1,11 @@
-FROM nvidia/cuda:13.0.2-runtime-ubuntu22.04
+FROM nvcr.io/nvidia/pytorch:25.10-py3
 
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /opt
 
-# Base deps
+# Base deps (Python already included in NGC PyTorch)
 RUN apt-get update && apt-get install -y \
     git ca-certificates curl \
-    python3 python3-pip python3-venv \
     libgl1 libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
@@ -23,13 +22,10 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
 
 WORKDIR /opt/ComfyUI
 
-# IMPORTANT: GB10 (sm_121) requires a PyTorch build that includes sm_12x support.
-# Use nightly cu130 wheels (no nvcr.io) and cache pip downloads for faster rebuilds.
+# IMPORTANT: Do NOT install torch here. NGC PyTorch already includes a GB10-capable torch build.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install --upgrade pip \
- && pip3 install --pre --index-url https://download.pytorch.org/whl/nightly/cu130 \
-      torch torchvision torchaudio \
- && pip3 install -r requirements.txt
+    python3 -m pip install --upgrade pip \
+ && python3 -m pip install -r requirements.txt
 
 EXPOSE 8188
 
