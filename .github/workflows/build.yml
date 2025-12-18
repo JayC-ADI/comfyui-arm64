@@ -2,7 +2,7 @@ name: Build ARM64 ComfyUI (latest)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -26,6 +26,11 @@ jobs:
           echo "COMFY_SHA_SHORT=${SHA:0:12}" >> "$GITHUB_ENV"
           echo "ComfyUI master HEAD: $SHA"
 
+      - name: Set up QEMU (for ARM64 builds)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -47,3 +52,5 @@ jobs:
           tags: |
             ghcr.io/jayc-adi/comfyui:latest
             ghcr.io/jayc-adi/comfyui:sha-${{ env.COMFY_SHA_SHORT }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

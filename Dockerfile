@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+FROM nvidia/cuda:13.0.2-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /opt
@@ -23,9 +23,9 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
 
 WORKDIR /opt/ComfyUI
 
-# IMPORTANT (ARM64): force CUDA-enabled PyTorch for CUDA 12.4, otherwise pip installs CPU-only torch
+# IMPORTANT: GB10 path - use CUDA 13 torch wheels
 RUN pip3 install --upgrade pip \
- && pip3 install --index-url https://download.pytorch.org/whl/cu124 \
+ && pip3 install --index-url https://download.pytorch.org/whl/cu130 \
       torch torchvision torchaudio \
  && pip3 install -r requirements.txt
 
